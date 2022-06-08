@@ -10,6 +10,7 @@ NetAddress myBroadcastLocation;
 FFT fft;
 AudioIn input;
 ControlP5 cp5;
+ControlFrame cf;
 
 int bands = 32;
 
@@ -32,14 +33,19 @@ String[] controls = new String[bands];
 CheckBox checkbox;
 int barHeight = 720;
 HashMap<Integer, ControllerData> hmap = new HashMap<Integer, ControllerData>();
+
+Sound s;
 public void setup() {
   size(1280, 850);
+      cp5 = new ControlP5(this);
+  s = new Sound(this);
+  
+    cf = new ControlFrame(this, 600, 850, "Controls",new OnOSCValueListener(),s);
     PFont font = createFont("arial",20);
 
   background(255);
       barWidth = width/float(bands);
 
-    cp5 = new ControlP5(this);
       checkbox = cp5.addCheckBox("checkBox")
                 .setPosition(0, barHeight-barWidth)
                 .setSize(int(barWidth), int(barWidth))
@@ -49,25 +55,20 @@ public void setup() {
    for(int i=0;i<controls.length;i++){
      controls[i] = str(i);
      checkbox.addItem(str(i),i*barWidth);
-   }
-  cp5.addTextfield("address")
-     .setPosition(50,barHeight+10)
-     .setSize(400,40)
-     .setFont(font)
-     .setFocus(true)
-     .setColor(color(255,0,0))
-     ;
-    cp5.addSlider("amp")
-     .setPosition(50,barHeight+100)
-     .setSize(200,20)
-     .setRange(-1,1)
-     .setValue(0)
-     ;
+      cp5.addTextlabel("checkBoxLabel"+i)
+                    .setText(str(i))
+                    .setPosition(i*barWidth,720)
+                    .setColorValue(0xffffff00)
+                    .setFont(createFont("Georgia",20))
+                    ;
+     hmap.put(i,new ControllerData());  
+ }
   Sound.list();
- 
+   
+  
 
-  Sound s = new Sound(this);
-  s.inputDevice(12);
+ 
+ // s.inputDevice(12);
   input = new AudioIn(this, 0);
 
   input.start();
@@ -98,9 +99,9 @@ public void draw() {
     float value = -sum[i]*(barHeight-barWidth)*scale;
      if(item.getBooleanValue()){
         //   println("givven vlaue "+value);
-
+        
          float mapped= map(value*-1, 0f, height,0,1);
-         sendMessage(i,constrain(mapped,0,1));
+         sendMessage(hmap.get(i).path,constrain(mapped,0,1));
      }
     // Draw the rectangles, adjust their height using the scale factor
     rect(i*barWidth, barHeight-barWidth, barWidth,value );
@@ -108,10 +109,21 @@ public void draw() {
   fill(0,0,0);
   rect(0,barHeight,width,height);
 }
-void sendMessage(int channel, float value){
-    println("sending message on channel "+channel+"  "+value);
 
-  OscMessage myOscMessage = new OscMessage("/composition/layers/4/clips/4/video/effects/fragment/opacity");
+class OnOSCValueListener implements OnValueChanged{
+     void onValueChanged(HashMap<Integer, ControllerData> newMap){
+        hmap = newMap;
+        println("received new map");
+      }
+}
+
+void sendMessage(String path, float value){
+  if(path.length()<4){
+    return;
+  }
+    println("sending message on channel "+path+"  "+value);
+
+  OscMessage myOscMessage = new OscMessage(path);
   myOscMessage.add(value);
   oscP5.send(myOscMessage, myBroadcastLocation);
 }
@@ -145,6 +157,18 @@ void amp(float theColor) {
   println("a slider event. setting background to "+theColor);
 }
 
+
+
+public void controlEvent(ControlEvent theEvent) {
+    println("got some event ");
+
+  if(theEvent.isFrom("menu")){
+    Map m = ((MenuList)theEvent.getController()).getItem(int(theEvent.getValue()));
+    println("got a menu event from item : "+m);
+  }
+}
+
+/*
 void controlEvent(ControlEvent theEvent) {
   if(theEvent.isAssignableFrom(Textfield.class)) {
     println("controlEvent: accessing a string from controller '"
@@ -153,7 +177,7 @@ void controlEvent(ControlEvent theEvent) {
             );
   }
 }
-
+*/
 public void address(String theText) {
   // automatically receives results from controller input
   println("a textfield event for controller 'input' : "+theText);
