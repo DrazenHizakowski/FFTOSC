@@ -94,6 +94,15 @@ public class ControlFrame extends PApplet {
   }
   void clear(){
     println("clear");
+      for(int i = 0;i<bands;i++){
+    hmap.put(i,new ControllerData());
+    Textfield field = cp5.get(Textfield.class,"address"+i);
+    if(field!=null){
+      field.setText("");
+      }
+    }
+  
+  
   }
   
   void load(){
@@ -120,6 +129,7 @@ public class ControlFrame extends PApplet {
   
   }
   saveStrings(fileName,array);
+  println("strings saved "+fileName+"   "+array.length);
     }
   }
   

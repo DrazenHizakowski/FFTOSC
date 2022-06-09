@@ -118,7 +118,7 @@ class OnOSCValueListener implements OnValueChanged{
 }
 
 void sendMessage(String path, float value){
-  if(path.length()<4){
+  if(path==null || path.length()<4){
     return;
   }
     println("sending message on channel "+path+"  "+value);
