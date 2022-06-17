@@ -1,3 +1,4 @@
+import g4p_controls.*;
 import controlP5.*;
 import processing.sound.*;
 import oscP5.*;
@@ -10,8 +11,7 @@ NetAddress myBroadcastLocation;
 FFT fft;
 AudioIn input;
 ControlP5 cp5;
-ControlFrame cf;
-
+//ControlFrame cf;
 int bands = 32;
 
 // Define a smoothing factor which determines how much the spectrums of consecutive
@@ -33,46 +33,43 @@ String[] controls = new String[bands];
 CheckBox checkbox;
 int barHeight = 720;
 HashMap<Integer, ControllerData> hmap = new HashMap<Integer, ControllerData>();
-
+ControlFrame cf;
+GWindow controlAWT = null;
 Sound s;
+boolean updateMenu = true;
 public void setup() {
   size(1280, 850);
-      cp5 = new ControlP5(this);
+
+  cp5 = new ControlP5(this);
   s = new Sound(this);
-  
-    cf = new ControlFrame(this, 600, 850, "Controls",new OnOSCValueListener(),s);
-    PFont font = createFont("arial",20);
-
-  background(255);
-      barWidth = width/float(bands);
-
-      checkbox = cp5.addCheckBox("checkBox")
-                .setPosition(0, barHeight-barWidth)
-                .setSize(int(barWidth), int(barWidth))
-                .setItemsPerRow(bands)
-                .setSpacingColumn(0)
-                .setSpacingRow(0);
-   for(int i=0;i<controls.length;i++){
-     controls[i] = str(i);
-     checkbox.addItem(str(i),i*barWidth);
-      cp5.addTextlabel("checkBoxLabel"+i)
-                    .setText(str(i))
-                    .setPosition(i*barWidth,720)
-                    .setColorValue(0xffffff00)
-                    .setFont(createFont("Georgia",20))
-                    ;
-     hmap.put(i,new ControllerData());  
- }
   Sound.list();
-   
-  
 
- 
- // s.inputDevice(12);
+  s.inputDevice(15);
   input = new AudioIn(this, 0);
 
   input.start();
+  cf = new ControlFrame(this, 400, 850, "Controls", new OnOSCValueListener());
+  cf.createAWTWindow();
+  background(255);
+  barWidth = width/float(bands);
 
+  checkbox = cp5.addCheckBox("checkBox")
+    .setPosition(0, barHeight-barWidth)
+    .setSize(int(barWidth), int(barWidth))
+    .setItemsPerRow(bands)
+    .setSpacingColumn(0)
+    .setSpacingRow(0);
+  for (int i=0; i<controls.length; i++) {
+    controls[i] = str(i);
+    checkbox.addItem(str(i), i*barWidth);
+    cp5.addTextlabel("checkBoxLabel"+i)
+      .setText(str(i))
+      .setPosition(i*barWidth, 720)
+      .setColorValue(0xffffff00)
+      .setFont(createFont("Georgia", 20))
+      ;
+    hmap.put(i, new ControllerData());
+  }
 
   oscP5 = new OscP5(this, 12000);
   myBroadcastLocation = new NetAddress("127.0.0.1", 32000);
@@ -81,12 +78,31 @@ public void setup() {
   fft.input(input);
 }
 
+public void buttonDispatcher(GButton button, GEvent event) {
+  println("submit from parent "+button.tag);
+  switch(button.tag) {
+  case "submit":
+    cf.submit();
+    break;
+  case "clear":
+    cf.clear();
+    break;
+  case "save":
+    cf.save();
+    break;
+  case "load":
+    cf.load();
+    break;
+  }
+}
+
+
 public void draw() {
   // Set background color, noStroke and fill color
-  background(125, 255, 125);
-    barWidth = width/float(bands);
+  background(231, 130, 253);
+  barWidth = width/float(bands);
 
-  fill(255, 0, 150);
+  fill(2, 65, 159);
   noStroke();
 
   // Perform the analysis
@@ -97,31 +113,31 @@ public void draw() {
     // Smooth the FFT spectrum data by smoothing factor
     sum[i] += (fft.spectrum[i] - sum[i]) * smoothingFactor;
     float value = -sum[i]*(barHeight-barWidth)*scale;
-     if(item.getBooleanValue()){
-        //   println("givven vlaue "+value);
-        
-         float mapped= map(value*-1, 0f, height,0,1);
-         sendMessage(hmap.get(i).path,constrain(mapped,0,1));
-     }
+    if (item.getBooleanValue()) {
+      //   println("givven vlaue "+value);
+
+      float mapped= map(value*-1, 0f, height, 0, 1);
+      sendMessage(hmap.get(i).path, constrain(mapped, 0, 1));
+    }
     // Draw the rectangles, adjust their height using the scale factor
-    rect(i*barWidth, barHeight-barWidth, barWidth,value );
+    rect(i*barWidth, barHeight-barWidth, barWidth, value );
   }
-  fill(0,0,0);
-  rect(0,barHeight,width,height);
+  fill(0, 0, 0);
+  rect(0, barHeight, width, height);
 }
 
-class OnOSCValueListener implements OnValueChanged{
-     void onValueChanged(HashMap<Integer, ControllerData> newMap){
-        hmap = newMap;
-        println("received new map");
-      }
+class OnOSCValueListener implements OnValueChanged {
+  void onValueChanged(HashMap<Integer, ControllerData> newMap) {
+    hmap = newMap;
+    println("received new map");
+  }
 }
 
-void sendMessage(String path, float value){
-  if(path==null || path.length()<4){
+void sendMessage(String path, float value) {
+  if (path==null || path.length()<4) {
     return;
   }
-    println("sending message on channel "+path+"  "+value);
+  println("sending message on channel "+path+"  "+value);
 
   OscMessage myOscMessage = new OscMessage(path);
   myOscMessage.add(value);
@@ -153,31 +169,6 @@ void mousePressed() {
   oscP5.send(myOscMessage, myBroadcastLocation);
 }
 
-void amp(float theColor) {
-  println("a slider event. setting background to "+theColor);
-}
-
-
-
-public void controlEvent(ControlEvent theEvent) {
-    println("got some event ");
-
-  if(theEvent.isFrom("menu")){
-    Map m = ((MenuList)theEvent.getController()).getItem(int(theEvent.getValue()));
-    println("got a menu event from item : "+m);
-  }
-}
-
-/*
-void controlEvent(ControlEvent theEvent) {
-  if(theEvent.isAssignableFrom(Textfield.class)) {
-    println("controlEvent: accessing a string from controller '"
-            +theEvent.getName()+"': "
-            +theEvent.getStringValue()
-            );
-  }
-}
-*/
 public void address(String theText) {
   // automatically receives results from controller input
   println("a textfield event for controller 'input' : "+theText);
